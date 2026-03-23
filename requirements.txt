@@ -1,0 +1,6 @@
+requests
+pandas
+finvizfinance
+python-dotenv
+pytz
+python-telegram-bot

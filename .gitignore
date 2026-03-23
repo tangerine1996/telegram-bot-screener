@@ -1,0 +1,48 @@
+# Środowisko i sekrety
+.env
+.env.test
+
+# Folder z kopiami i testami
+backup/
+
+# Python - pliki tymczasowe i skompilowane
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Środowiska wirtualne
+.venv
+venv/
+ENV/
+env/
+target/
+
+# Logi i wyniki
+*.log
+results/*
+!results/.gitkeep
+# Zostawiamy nagłówek lub sam folder, ale ignorujemy konkretne pliki wynikowe jeśli chcesz
+# results/
+
+# Systemowe
+.DS_Store
+Thumbs.db
