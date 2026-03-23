@@ -38,31 +38,61 @@ Automatyczny skaner giełdowy (Python), który filtruje spółki w trakcie sesji
 
 3. **Inicjalizacja Bota:**
    Znajdź swojego bota na Telegramie i kliknij **/start**.
+## ⚙️ Zarządzanie Usługą (Linux Systemd)
 
-## ⚙️ Zarządzanie Usługą
+Aby bot działał w tle i uruchamiał się automatycznie po starcie systemu, najlepiej skonfigurować go jako usługę `systemd`.
 
-Bot działa jako usługa systemowa `screener-bot.service`.
+1. **Stwórz plik usługi:**
+   ```bash
+   sudo nano /etc/systemd/system/screener-bot.service
+   ```
 
-- **Sprawdź status:**
-  ```bash
-  sudo systemctl status screener-bot.service
-  ```
+2. **Wklej poniższą zawartość** (dostosuj ścieżki `/home/user/...` do swojej lokalizacji):
+   ```ini
+   [Unit]
+   Description=Stock Premarket Screener Telegram Bot
+   After=network.target
 
-- **Logi na żywo:**
-  ```bash
-  journalctl -u screener-bot.service -f
-  ```
+   [Service]
+   Type=simple
+   User=twoja_nazwa_uzytkownika
+   WorkingDirectory=/home/twoja_nazwa_uzytkownika/trading-screener
+   ExecStart=/usr/bin/python3 /home/twoja_nazwa_uzytkownika/trading-screener/telegram_bot.py
+   Restart=always
+   RestartSec=10
 
-- **Restart bota (po zmianach w kodzie):**
-  ```bash
-  sudo systemctl restart screener-bot.service
-  ```
+   [Install]
+   WantedBy=multi-user.target
+   ```
 
-## 📊 Ręczne Uruchomienie
-Aby wykonać skanowanie i wysłać raport natychmiast:
-```bash
-python3 -c "import asyncio; from telegram_bot import send_to_telegram; asyncio.run(send_to_telegram())"
-```
+3. **Aktywuj usługę:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable screener-bot.service
+   sudo systemctl start screener-bot.service
+   ```
+
+- **Sprawdź status:** `sudo systemctl status screener-bot.service`
+- **Logi na żywo:** `journalctl -u screener-bot.service -f`
+
+## 🪟 Instrukcja dla Windows
+
+1. **Instalacja:**
+   - Zainstaluj Python ze strony [python.org](https://www.python.org/).
+   - Pobierz kod bota i zainstaluj biblioteki: `pip install -r requirements.txt`.
+   - Skonfiguruj plik `.env` (pamiętaj, aby nie używać cudzysłowu w wartościach, np. `TELEGRAM_BOT_TOKEN=123:ABC`).
+
+2. **Uruchamianie w tle:**
+   - Możesz po prostu zostawić otwarte okno terminala z komendą `python telegram_bot.py`.
+   - **Harmonogram zadań (Task Scheduler):** Aby bot startował z systemem, dodaj nowe zadanie w "Harmonogramie zadań" Windows, wskazując `python.exe` jako program i ścieżkę do `telegram_bot.py` jako argument.
+
+## 📊 Ręczne Uruchomienie (Test)
+ Aby wykonać skanowanie i wysłać raport natychmiast:
+ ```bash
+ python3 -c "import asyncio; from telegram_bot import send_to_telegram; asyncio.run(send_to_telegram())"
+ ```
 
 ## ⚖️ License
+This project is for personal trading research purposes. Use at your own risk.
+
 This project is for personal trading research purposes. Use at your own risk.
