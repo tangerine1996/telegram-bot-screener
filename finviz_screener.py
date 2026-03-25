@@ -132,9 +132,10 @@ def run_screener():
         # Ścieżka do zbiorczego pliku CSV
         output_file = os.path.join(results_dir, "screener_results_all.csv")
         
-        # Zapis do CSV - teraz nadpisujemy (mode='w'), aby trzymać tylko ostatnie wyniki
-        df.to_csv(output_file, index=False)
-        print(f"Wyniki zapisane do: {output_file}")
+        # Zapis do CSV - dopisywanie (mode='a'), nagłówek tylko jeśli plik nie istnieje
+        file_exists = os.path.isfile(output_file)
+        df.to_csv(output_file, mode='a', index=False, header=not file_exists)
+        print(f"Wyniki dopisane do: {output_file}")
 
     except Exception as e:
         print(f"Wystąpił błąd w run_screener: {e}")

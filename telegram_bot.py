@@ -135,15 +135,15 @@ def job():
 
 def run_scheduler():
     est = pytz.timezone('America/New_York')
-    print("Bot wystartował. Harmonogram: 09:00 i 09:15 EST (Pn-Pt).")
+    print("Bot wystartował. Harmonogram: 09:15 EST (Pn-Pt).")
     
     while True:
         now_est = datetime.now(est)
         # weekday() zwraca 0 dla Poniedziałku, ..., 4 dla Piątku
         if now_est.weekday() < 5:
-            # Sprawdzenie obu godzin
+            # Sprawdzenie godziny
             current_time_str = now_est.strftime("%H:%M")
-            if current_time_str in ["09:00", "09:15"]:
+            if current_time_str == "09:15":
                 job()
                 time.sleep(65) # Unikamy podwójnego wysłania w tej samej minucie
         
