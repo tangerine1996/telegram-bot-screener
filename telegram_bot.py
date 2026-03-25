@@ -62,9 +62,22 @@ async def send_to_telegram():
     if df.empty:
         message = f"ℹ️ <b>Finviz Screener</b>\n\nBrak nowych spółek na dzień {date_str}."
     else:
+        # 2a. Obliczamy Rel Vol dla wszystkich i sortujemy
+        df = df.copy()
+        rel_vols_for_sort = []
+        for _, row in df.iterrows():
+            try:
+                pm_vol_raw = float(row.get('Volume', 0))
+                avg_vol_raw = float(row.get('Avg_Vol_30d_Raw', 0))
+                rel_vols_for_sort.append(pm_vol_raw / avg_vol_raw if avg_vol_raw > 0 else 0)
+            except:
+                rel_vols_for_sort.append(0)
+        
+        df['Rel_Vol_Calc_Numeric'] = rel_vols_for_sort
+        df = df.sort_values(by='Rel_Vol_Calc_Numeric', ascending=False)
+
         message = f"🚀 <b>TOP SPÓŁKI - FINVIZ ({date_str})</b>\n\n"
 
-        
         for _, row in df.iterrows():
             ticker_symbol = clean_html(str(row['Ticker']))
             price = f"${row['Price']:.2f}"
@@ -73,19 +86,12 @@ async def send_to_telegram():
             volume = format_volume(row['Volume'])
             
             # Nowe dane techniczne (Pobierane indywidualnie w finviz_screener.py)
-            rel_vol = row.get('Rel_Vol', 'N/A')
             gap_val = row.get('Gap_Val', 'N/A')
             float_shares = row.get('Float_Val', 'N/A')
             
-            # Formatowanie Rel Vol do 2 miejsc po przecinku
-            try:
-                if isinstance(rel_vol, (float, int)):
-                    rel_vol_str = f"{rel_vol:.2f}"
-                else:
-                    # Próba konwersji, jeśli to string
-                    rel_vol_str = f"{float(rel_vol):.2f}"
-            except:
-                rel_vol_str = str(rel_vol)
+            # Pobieramy już wyliczony wcześniej Rel Vol
+            rel_vol_numeric = row.get('Rel_Vol_Calc_Numeric', 0)
+            rel_vol_calc = f"{rel_vol_numeric:.2f}" if rel_vol_numeric > 0 else "N/A"
 
             # Formatowanie Gap (zamiana ułamka na procent, jeśli to ułamek)
             try:
@@ -113,8 +119,8 @@ async def send_to_telegram():
             finviz_url = f"https://finviz.com/quote.ashx?t={ticker_symbol}"
             message += f"🔹 <b><a href='{finviz_url}'>{ticker_symbol}</a></b>\n"
             message += f"   💰 Cena: <code>{price}</code> | <b>{change_str}</b>\n"
-            message += f"   📊 Vol: <code>{volume}</code> | Rel Vol: <code>{rel_vol_str}</code>\n"
-            message += f"   📈 Gap: <code>{gap_str}</code> | Float: <code>{float_shares}</code>\n"
+            message += f"   📊 PM Vol: <code>{volume}</code> | Rel Vol: <code>{rel_vol_calc}</code>\n"
+            message += f"   📈 PM Gap: <code>{gap_str}</code> | Float: <code>{float_shares}</code>\n"
             message += f"   {news_info}\n\n"
 
     # 3. Wysyłka przez bota

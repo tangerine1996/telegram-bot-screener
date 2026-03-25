@@ -38,18 +38,25 @@ def get_tradingview_data():
         "symbols": {"query": {"types": []}, "tickers": []},
         "columns": [
             "name",
-            "close",
+            "premarket_close",
             "volume",
             "float_shares_outstanding",
             "relative_volume_10d_calc",
-            "premarket_change"
+            "premarket_change",
+            "premarket_gap",
+            "premarket_volume",
+            "average_volume_30d_calc"
         ],
         "filter": [
-            {"left": "close", "operation": "greater", "right": 1},
-            {"left": "close", "operation": "less", "right": 20},
+            {"left": "premarket_close", "operation": "greater", "right": 1},
+            {"left": "premarket_close", "operation": "less", "right": 20},
             {"left": "float_shares_outstanding", "operation": "less", "right": 20000000},
-            {"left": "relative_volume_10d_calc", "operation": "greater", "right": 3},
-            {"left": "premarket_change", "operation": "greater", "right": 3}
+            # Poprzednie filtry:
+            # {"left": "relative_volume_10d_calc", "operation": "greater", "right": 3},
+            # {"left": "premarket_change", "operation": "greater", "right": 3}
+            # Nowe filtry:
+            {"left": "premarket_volume", "operation": "greater", "right": 1000000},
+            {"left": "premarket_gap", "operation": "not_in_range", "right": [-3, 3]}
         ],
         "range": [0, 50] # Top 50 wyników
     }
@@ -70,13 +77,17 @@ def get_tradingview_data():
 
         rows = [x["d"] for x in data]
         df = pd.DataFrame(rows, columns=[
-            'Ticker', 'Price', 'Volume', 'Float_Val_Raw', 'Rel_Vol', 'Premarket_Change'
+            'Ticker', 'Price', 'Volume_Main', 'Float_Val_Raw', 'Rel_Vol', 
+            'Premarket_Change', 'Gap_Val_Raw', 'Premarket_Volume', 'Avg_Vol_30d_Raw'
         ])
         
         # Dostosowanie danych do formatu bota
         df['Change'] = df['Premarket_Change'] / 100 # Konwersja na ułamek (np. 5.5 -> 0.055)
-        df['Gap_Val'] = df['Change'] # Bot używa Gap_Val w wiadomości
+        df['Gap_Val'] = df['Gap_Val_Raw'] / 100     # Konwersja Gap na ułamek
         df['Float_Val'] = df['Float_Val_Raw'].apply(format_float)
+        df['Avg_Vol_30d'] = df['Avg_Vol_30d_Raw'].apply(format_float)
+        # Zachowujemy Wolumen Premarket do wyświetlenia w raporcie
+        df['Volume'] = df['Premarket_Volume'] 
             
         return df
     except Exception as e:
@@ -120,7 +131,8 @@ def run_screener():
         # Uporządkowanie kolumn - usunięto zbędne N/A
         ordered_columns = [
             'Scan_Date', 'Ticker', 'Price', 'Change', 'Volume', 
-            'News_Title', 'News_Link', 'News_Date', 'Float_Val', 'Rel_Vol', 'Gap_Val'
+            'News_Title', 'News_Link', 'News_Date', 'Float_Val', 'Rel_Vol', 
+            'Gap_Val', 'Avg_Vol_30d', 'Avg_Vol_30d_Raw'
         ]
         
         # Wstawienie Scan_Date na początku

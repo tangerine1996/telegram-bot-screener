@@ -1,24 +1,25 @@
 # 🚀 Stock Premarket Screener & Telegram Bot
 
-Automatyczny skaner giełdowy (Python), który filtruje spółki w trakcie sesji przedrynkowej (**Premarket**) i wysyła raporty na Telegram w dni handlowe o **09:00** i **09:15 EST** (pół godziny przed otwarciem giełdy w USA).
+Automatyczny skaner giełdowy (Python), który filtruje spółki w trakcie sesji przedrynkowej (**Premarket**) i wysyła raporty na Telegram w dni handlowe o **09:15 EST** (15 minut przed otwarciem giełdy w USA).
 
 ## 📊 Główne funkcje
-- **Skanowanie Premarketu (TradingView API):** Bot pobiera precyzyjne dane bezpośrednio z TradingView, uwzględniając ruchy cenowe przed sesją główną.
+- **Skanowanie Premarketu (TradingView API):** Bot pobiera precyzyjne dane bezpośrednio z TradingView, korzystając z kolumny `premarket_close` (notowania na żywo przed sesją główną).
 - **Wyrafinowane Filtry:**
-  - Cena: $1 - $20
-  - Premarket Change: > 3%
-  - Relative Volume (10d): > 3
+  - Cena (Premarket): $1 - $20
+  - Premarket Gap: < -3% lub > +3%
+  - Premarket Volume: > 1,000,000
   - Float Shares: < 20M
-- **Raporty Telegram (HTML):**
+- **Inteligentne Raporty Telegram (HTML):**
+  - **Sortowanie:** Spółki są automatycznie sortowane od najwyższego do najniższego **Relative Volume** (wyliczanego dynamicznie: PM Vol / Avg 30d).
   - Klikalne tickery (link do profilu na Finviz).
-  - Dane techniczne: Cena, % Zmiany Premarket, Wolumen, Relative Volume, Gap %, Float.
+  - **Dane techniczne:** Cena, % Zmiany PM, PM Vol, Rel Vol, PM Gap, Float.
   - **Bezpośrednie linki do newsów:** Kliknięcie w datę newsa przenosi prosto do artykułu na Finviz.
 - **Niezawodność:** Bot działa jako usługa Linux `systemd` z automatycznym restartem i startem przy uruchomieniu systemu.
-- **Archiwizacja danych:** Zapisuje ostatni skan do pliku `results/screener_results_all.csv` (tylko najświeższe wyniki).
+- **Archiwizacja danych:** Zapisuje każde skanowanie do pliku `results/screener_results_all.csv`, gromadząc historię skanowań (mode: append).
 
 ## 🛠 Struktura Projektu
 - `finviz_screener.py`: Silnik pobierający dane z TradingView i newsy z Finviz.
-- `telegram_bot.py`: Harmonogram (09:00 i 09:15 EST) i wysyłka powiadomień.
+- `telegram_bot.py`: Harmonogram (09:15 EST) i wysyłka powiadomień.
 - `.env`: Bezpieczne przechowywanie Tokena bota i ID czatu.
 - `results/`: Katalog z wynikami skanowania w formacie CSV.
 
@@ -38,6 +39,7 @@ Automatyczny skaner giełdowy (Python), który filtruje spółki w trakcie sesji
 
 3. **Inicjalizacja Bota:**
    Znajdź swojego bota na Telegramie i kliknij **/start**.
+
 ## ⚙️ Zarządzanie Usługą (Linux Systemd)
 
 Aby bot działał w tle i uruchamiał się automatycznie po starcie systemu, najlepiej skonfigurować go jako usługę `systemd`.
@@ -93,6 +95,4 @@ Aby bot działał w tle i uruchamiał się automatycznie po starcie systemu, naj
  ```
 
 ## ⚖️ License
-This project is for personal trading research purposes. Use at your own risk.
-
 This project is for personal trading research purposes. Use at your own risk.
