@@ -10,15 +10,16 @@ from telegram import Bot
 import pytz
 
 # Load configuration
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-SCREENER_RESULTS_CSV = os.path.join("results", "screener_results_all.csv")
-KLINES_DIR = os.path.join("results", "klines")
+SCREENER_RESULTS_CSV = os.path.join(BASE_DIR, "results", "screener_results_all.csv")
+KLINES_DIR = os.path.join(BASE_DIR, "results", "klines")
 # ==============================================================================
 
 async def send_telegram_notification(date_str, tickers):
@@ -82,7 +83,8 @@ def generate_candlestick_chart(df, ticker, date_str, output_path):
             ylabel='Price ($)',
             returnfig=True,
             tight_layout=True,
-            datetime_format='%H:%M'
+            datetime_format='%H:%M',
+            warn_too_much_data=2000
         )
 
         ax = axes[0]
