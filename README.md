@@ -7,7 +7,7 @@ A modular Python-based ecosystem designed to identify, report, and archive high-
 - **Premarket Scanning (TradingView API):** Precision data extraction from TradingView's live premarket feed.
 - **Dynamic Technical Indicators:** Price, Premarket Gap (> +3%), High-Volume filtering (> 1M), and Relative Volume (Rel Vol) calculations.
 - **Finviz News Integration:** Automatically fetches the latest news link and timestamp for every identified ticker.
-- **Intraday Data Collector:** Downloads 1-minute historical data (Klines) for all screened stocks at the end of the trading day.
+- **Intraday Data Collector:** Downloads 1-minute historical data (Klines) for all screened stocks at the end of the trading day and sends a Telegram confirmation once complete.
 - **Automatic Chart Generation:** Generates professional PNG candlestick charts with session highlighting.
 - **Interactive Telegram Archive:** Browse historical data and charts directly via Telegram using an interactive menu.
 - **Decoupled Architecture:** Separate scripts for scanning, messaging, and data archiving for maximum reliability.
@@ -81,7 +81,7 @@ CRON_TZ=America/New_York
 ```
 
 ### 3. End-of-Day Archiving (Cron - 23:00 Local Time)
-Downloads full intraday 1m data and generates charts for all tickers scanned that morning.
+Downloads full intraday 1m data and generates charts for all tickers scanned that morning. Once finished, it sends a summary notification to Telegram.
 ```bash
 0 23 * * 1-5 /usr/bin/python3 /home/serveradmin/projects/trading-screener/data_collector.py >> /home/serveradmin/projects/trading-screener/klines_execution.log 2>&1
 ```

@@ -1,10 +1,18 @@
 import os
+import asyncio
 import pandas as pd
 import yfinance as yf
 import mplfinance as mpf
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+from telegram import Bot
 import pytz
+
+# Load configuration
+load_dotenv()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # ==============================================================================
 # CONFIGURATION
@@ -12,6 +20,26 @@ import pytz
 SCREENER_RESULTS_CSV = os.path.join("results", "screener_results_all.csv")
 KLINES_DIR = os.path.join("results", "klines")
 # ==============================================================================
+
+async def send_telegram_notification(date_str, tickers):
+    """Sends a notification to Telegram with the list of processed tickers."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[!] Telegram configuration missing. Skipping notification.")
+        return
+
+    if not tickers:
+        print("[!] No tickers processed. Skipping notification.")
+        return
+
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    tickers_str = ", ".join(tickers)
+    message = f"Today's ({date_str}) klines downloaded from stocks: {tickers_str}"
+    
+    try:
+        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+        print(f"[+] Telegram notification sent.")
+    except Exception as e:
+        print(f"[!] Error sending Telegram notification: {e}")
 
 def get_latest_tickers():
     """Reads the latest tickers from the screener results CSV."""
@@ -129,9 +157,10 @@ def save_klines_and_charts():
     tickers, date_str = get_latest_tickers()
     if not tickers:
         print("[!] No tickers to process.")
-        return
+        return [], None
 
     print(f"Processing {len(tickers)} tickers for date: {date_str}")
+    processed_tickers = []
 
     for ticker in tickers:
         base_name = f"{ticker}_{date_str.replace('-', '_')}"
@@ -143,9 +172,14 @@ def save_klines_and_charts():
         if data is not None:
             data.to_csv(csv_path)
             print(f"    [+] Saved CSV: {csv_path}")
+            processed_tickers.append(ticker)
             
             if generate_candlestick_chart(data, ticker, date_str, png_path):
                 print(f"    [+] Generated Chart: {png_path}")
+    
+    return processed_tickers, date_str
 
 if __name__ == "__main__":
-    save_klines_and_charts()
+    processed, date_str = save_klines_and_charts()
+    if processed and date_str:
+        asyncio.run(send_telegram_notification(date_str, processed))
