@@ -1,25 +1,26 @@
-# 🚀 Stock Premarket Screener & Telegram Bot
+# 🚀 Stock Premarket Screener & Trading Suite
 
-A modular Python-based stock scanner that filters US stocks during the **Premarket** session and delivers formatted reports to Telegram. Optimized for professional execution using system `cron`.
+A modular Python-based ecosystem designed to identify, report, and archive high-momentum US stocks. It filters premarket data, delivers real-time Telegram alerts, and archives intraday 1-minute klines with visual charts for post-market analysis.
 
 ## 📊 Core Features
+
 - **Premarket Scanning (TradingView API):** Precision data extraction from TradingView's live premarket feed.
-- **Dynamic Technical Indicators:**
-  - **Price:** Live premarket price.
-  - **Premarket Gap:** Filter for gaps > +3%.
-  - **Premarket Volume:** High-volume filtering (> 1M).
-  - **Relative Volume (Rel Vol):** Calculated as `PM Volume / Avg 30d Volume`.
-  - **Float Shares:** Small-cap focus (< 20M shares).
-- **Finviz News Integration:** Fetches the latest news link and timestamp for every identified ticker.
-- **Decoupled Architecture:** Separate engine for data collection and messaging for maximum reliability.
-- **CSV Archiving:** Appends all scan results to `results/screener_results_all.csv` for historical analysis.
+- **Dynamic Technical Indicators:** Price, Premarket Gap (> +3%), High-Volume filtering (> 1M), and Relative Volume (Rel Vol) calculations.
+- **Finviz News Integration:** Automatically fetches the latest news link and timestamp for every identified ticker.
+- **Intraday Data Collector:** Downloads 1-minute historical data (Klines) for all screened stocks at the end of the trading day.
+- **Automatic Chart Generation:** Generates professional PNG candlestick charts with session highlighting:
+    - **Gray Background:** Premarket and After-hours.
+    - **White Background:** Regular Trading Session.
+- **Decoupled Architecture:** Separate scripts for scanning, messaging, and data archiving for maximum reliability.
 
 ## 🛠 Project Structure
+
 - `finviz_screener.py`: The data engine. Fetches data from TradingView and news from Finviz.
-- `telegram_bot.py`: The messenger. Reads the latest CSV entries and sends HTML reports.
-- `run_all.sh`: A helper bash script to execute the full pipeline (Scan -> Send).
-- `results/`: Directory containing the historical scan data in CSV format.
-- `.env`: Secure storage for Telegram Bot Token and Chat ID.
+- `telegram_bot.py`: The messenger. Sends formatted HTML reports based on the latest scan.
+- `data_collector.py`: The archiver. Downloads 1m klines and generates PNG visual charts.
+- `run_all.sh`: Helper script to execute the full morning pipeline (Scan -> Send).
+- `results/`: Historical scan data (CSV).
+- `results/klines/`: Intraday 1m data (CSV) and session charts (PNG).
 
 ## 📋 Setup & Installation
 
@@ -29,44 +30,36 @@ A modular Python-based stock scanner that filters US stocks during the **Premark
    ```
 
 2. **Configure Environment:**
-   Create a `.env` file based on `.env.example`:
+   Ensure your `.env` file is set up with:
    ```env
    TELEGRAM_BOT_TOKEN=your_token_here
    TELEGRAM_CHAT_ID=your_chat_id_here
    ```
 
-3. **Adjust Filters:**
-   You can easily modify scan criteria at the top of `finviz_screener.py`:
-   ```python
-   SCREENER_FILTERS = {
-       "min_price": 1.0,
-       "max_price": 20.0,
-       "max_float": 20_000_000,
-       "min_premarket_volume": 1_000_000,
-       "min_premarket_gap": 3.0,
-   }
-   ```
+3. **Modify Filters:**
+   Edit `SCREENER_FILTERS` at the top of `finviz_screener.py` to adjust your trading criteria.
 
 ## ⚙️ Automation (System Cron)
 
-The project is designed to run via `cron`. It is recommended to schedule it 15 minutes before the US market opens (09:15 AM ET).
+The system is designed to be fully autonomous using system cron.
 
-1. **Add to Crontab:**
-   ```bash
-   crontab -e
-   ```
+### 1. Morning Report (09:15 AM ET)
+Triggers the scan and sends the Telegram report 15 minutes before the market opens.
+```bash
+CRON_TZ=America/New_York
+15 9 * * 1-5 /home/serveradmin/projects/trading-screener/run_all.sh >> /home/serveradmin/projects/trading-screener/execution.log 2>&1
+```
 
-2. **Paste the following line** (adjust the path to your project directory):
-   ```bash
-   CRON_TZ=America/New_York
-   15 9 * * 1-5 /home/user/trading-screener/run_all.sh >> /home/user/trading-screener/execution.log 2>&1
-   ```
+### 2. End-of-Day Archiving (23:00 Local Time)
+Downloads full intraday 1m data and generates charts for all tickers scanned that morning.
+```bash
+0 23 * * 1-5 /usr/bin/python3 /home/serveradmin/projects/trading-screener/data_collector.py >> /home/serveradmin/projects/trading-screener/klines_execution.log 2>&1
+```
 
 ## 📊 Manual Execution
-To run the full scan and send a report immediately:
-```bash
-./run_all.sh
-```
+
+- **Full Morning Pipeline:** `./run_all.sh`
+- **Collect Intraday Data/Charts:** `python3 data_collector.py`
 
 ## ⚖️ License
 This project is for personal trading research purposes. Use at your own risk.
