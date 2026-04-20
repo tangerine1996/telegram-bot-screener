@@ -88,9 +88,32 @@ def generate_candlestick_chart(df, ticker, date_str, output_path):
         )
 
         ax = axes[0]
-        
+
+        # Force 30-minute ticks on x-axis, but only show labels on full hours
+        tick_indices = []
+        tick_labels = []
+        for i, dt in enumerate(df.index):
+            if dt.minute in [0, 30]:
+                if dt.minute == 0:
+                    label = dt.strftime('%H:%M')
+                else:
+                    label = "" # Empty string for 30-min ticks
+                
+                # Avoid duplicate labels if data is sparse
+                if not tick_indices or (i - tick_indices[-1] > 10): 
+                    tick_indices.append(i)
+                    tick_labels.append(label)
+
+        # Apply custom ticks (only if they fit reasonably)
+        if tick_indices:
+            ax.set_xticks(tick_indices)
+            ax.set_xticklabels(tick_labels, rotation=0, fontsize=8)
+
         # Highlight Extended Hours (Gray background)
-        # We find the indices for the sessions
+        # Regular Market Hours: 09:30 - 16:00 ET
+        reg_start = pd.Timestamp(f"{date_str} 09:30:00").tz_localize('America/New_York')
+        reg_end = pd.Timestamp(f"{date_str} 16:00:00").tz_localize('America/New_York')
+
         all_times = df.index
         
         # Premarket highlighting (anything before 09:30)
@@ -142,7 +165,9 @@ def download_intraday_data(ticker, date_str):
             data.index = data.index.tz_localize('UTC')
         data.index = data.index.tz_convert('America/New_York')
 
+        # Filter by date and specific time range (04:00 - 16:00 ET)
         data = data[data.index.strftime('%Y-%m-%d') == date_str]
+        data = data.between_time('04:00', '16:00')
         return data
 
     except Exception as e:
