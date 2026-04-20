@@ -8,15 +8,15 @@ A modular Python-based ecosystem designed to identify, report, and archive high-
 - **Dynamic Technical Indicators:** Price, Premarket Gap (> +3%), High-Volume filtering (> 1M), and Relative Volume (Rel Vol) calculations.
 - **Finviz News Integration:** Automatically fetches the latest news link and timestamp for every identified ticker.
 - **Intraday Data Collector:** Downloads 1-minute historical data (Klines) for all screened stocks at the end of the trading day.
-- **Automatic Chart Generation:** Generates professional PNG candlestick charts with session highlighting:
-    - **Gray Background:** Premarket and After-hours.
-    - **White Background:** Regular Trading Session.
+- **Automatic Chart Generation:** Generates professional PNG candlestick charts with session highlighting.
+- **Interactive Telegram Archive:** Browse historical data and charts directly via Telegram using an interactive menu.
 - **Decoupled Architecture:** Separate scripts for scanning, messaging, and data archiving for maximum reliability.
 
 ## 🛠 Project Structure
 
 - `finviz_screener.py`: The data engine. Fetches data from TradingView and news from Finviz.
-- `telegram_bot.py`: The messenger. Sends formatted HTML reports based on the latest scan.
+- `telegram_bot.py`: The messenger. Sends automated morning reports via Cron.
+- `telegram_service.py`: The interactive bot. Provides a UI to browse historical results and charts.
 - `data_collector.py`: The archiver. Downloads 1m klines and generates PNG visual charts.
 - `run_all.sh`: Helper script to execute the full morning pipeline (Scan -> Send).
 - `results/`: Historical scan data (CSV).
@@ -36,21 +36,51 @@ A modular Python-based ecosystem designed to identify, report, and archive high-
    TELEGRAM_CHAT_ID=your_chat_id_here
    ```
 
-3. **Modify Filters:**
-   Edit `SCREENER_FILTERS` at the top of `finviz_screener.py` to adjust your trading criteria.
+## ⚙️ Automation & Services
 
-## ⚙️ Automation (System Cron)
+### 1. Interactive Bot Service (Systemd)
+The interactive bot runs as a background service. To install it manually:
 
-The system is designed to be fully autonomous using system cron.
+1. **Create the service file:**
+   ```bash
+   sudo nano /etc/systemd/system/stock_screener.service
+   ```
 
-### 1. Morning Report (09:15 AM ET)
+2. **Paste the following configuration** (adjust `User` and `WorkingDirectory` if necessary):
+   ```ini
+   [Unit]
+   Description=Stock Screener Telegram Interactive Bot
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=serveradmin
+   WorkingDirectory=/home/serveradmin/projects/trading-screener
+   ExecStart=/usr/bin/python3 telegram_service.py
+   Restart=always
+   RestartSec=10
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. **Enable and start the service:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable stock_screener.service
+   sudo systemctl start stock_screener.service
+   ```
+
+- **Usage:** Send `/data` to the bot on Telegram to start browsing the archive.
+
+### 2. Morning Report (Cron - 09:15 AM ET)
 Triggers the scan and sends the Telegram report 15 minutes before the market opens.
 ```bash
 CRON_TZ=America/New_York
 15 9 * * 1-5 /home/serveradmin/projects/trading-screener/run_all.sh >> /home/serveradmin/projects/trading-screener/execution.log 2>&1
 ```
 
-### 2. End-of-Day Archiving (23:00 Local Time)
+### 3. End-of-Day Archiving (Cron - 23:00 Local Time)
 Downloads full intraday 1m data and generates charts for all tickers scanned that morning.
 ```bash
 0 23 * * 1-5 /usr/bin/python3 /home/serveradmin/projects/trading-screener/data_collector.py >> /home/serveradmin/projects/trading-screener/klines_execution.log 2>&1
@@ -59,6 +89,7 @@ Downloads full intraday 1m data and generates charts for all tickers scanned tha
 ## 📊 Manual Execution
 
 - **Full Morning Pipeline:** `./run_all.sh`
+- **Interactive Bot:** `python3 telegram_service.py`
 - **Collect Intraday Data/Charts:** `python3 data_collector.py`
 
 ## ⚖️ License
