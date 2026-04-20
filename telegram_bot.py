@@ -1,159 +1,100 @@
 import os
-import time
 import asyncio
 import html
+import pandas as pd
 from datetime import datetime
-import pytz
 from dotenv import load_dotenv
 from telegram import Bot
 from telegram.constants import ParseMode
-import pandas as pd
-from finviz_screener import run_screener
 
-# Wczytywanie konfiguracji
+# Load configuration
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+CSV_PATH = os.path.join("results", "screener_results_all.csv")
 
-def format_volume(volume):
+def format_number(val):
+    """Formats large numbers into human-readable strings (e.g., 1.5M)."""
     try:
-        volume = float(volume)
-        if volume >= 1_000_000:
-            return f"{volume / 1_000_000:.2f}M"
-        elif volume >= 1_000:
-            return f"{volume / 1_000:.2f}K"
-        return str(volume)
-    except:
-        return str(volume)
+        val = float(val)
+        if val >= 1_000_000_000: return f"{val / 1_000_000_000:.1f}B"
+        if val >= 1_000_000: return f"{val / 1_000_000:.1f}M"
+        if val >= 1_000: return f"{val / 1_000:.1f}K"
+        return f"{val:.0f}"
+    except: return "N/A"
 
 def clean_html(text):
-    if not isinstance(text, str):
-        return ""
+    """Escapes HTML special characters to prevent Telegram API errors."""
+    if not isinstance(text, str): return ""
     return html.escape(text)
 
 async def send_to_telegram():
-    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "TWÓJ_TOKEN_TUTAJ":
-        print("BŁĄD: Uzupełnij TELEGRAM_BOT_TOKEN w pliku .env!")
+    """Reads latest results from CSV and sends a formatted report to Telegram."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[!] ERROR: Telegram configuration missing in .env")
         return
 
-    # 1. Uruchomienie skanera (teraz on sam dopisuje do screener_results_all.csv)
-    print(f"[{datetime.now()}] Uruchamiam skanowanie...")
-    run_screener()
-
-    # 2. Odczyt wyników
-    results_dir = "results"
-    csv_file = os.path.join(results_dir, "screener_results_all.csv")
-
-    if not os.path.exists(csv_file):
-        print("BŁĄD: Plik CSV nie został znaleziony.")
+    if not os.path.exists(CSV_PATH):
+        print(f"[!] ERROR: Data file {CSV_PATH} not found.")
         return
 
-    full_df = pd.read_csv(csv_file)
-    if full_df.empty:
-        print("Plik CSV jest pusty.")
-        return
+    try:
+        full_df = pd.read_csv(CSV_PATH)
+        if full_df.empty:
+            print("[!] CSV file is empty.")
+            return
 
-    # Pobieramy tylko wiersze z ostatniego skanowania (ostatni timestamp)
-    last_timestamp = full_df['Scan_Date'].max()
-    df = full_df[full_df['Scan_Date'] == last_timestamp]
+        # Get rows from the latest scan session
+        last_ts = full_df['Scan_Date'].max()
+        df = full_df[full_df['Scan_Date'] == last_ts]
 
-    date_str = last_timestamp.split(' ')[0] # Tylko data do nagłówka
-
-    if df.empty:
-        message = f"ℹ️ <b>Finviz Screener</b>\n\nBrak nowych spółek na dzień {date_str}."
-    else:
-        # 2a. Obliczamy Rel Vol dla wszystkich i sortujemy
-        df = df.copy()
-        rel_vols_for_sort = []
-        for _, row in df.iterrows():
-            try:
-                pm_vol_raw = float(row.get('Volume', 0))
-                avg_vol_raw = float(row.get('Avg_Vol_30d_Raw', 0))
-                rel_vols_for_sort.append(pm_vol_raw / avg_vol_raw if avg_vol_raw > 0 else 0)
-            except:
-                rel_vols_for_sort.append(0)
-        
-        df['Rel_Vol_Calc_Numeric'] = rel_vols_for_sort
-        df = df.sort_values(by='Rel_Vol_Calc_Numeric', ascending=False)
-
-        message = f"🚀 <b>TOP SPÓŁKI - FINVIZ ({date_str})</b>\n\n"
+        message = f"🚀 <b>SCREENER REPORT</b>\n"
+        message += f"<i>Generated at: {last_ts}</i>\n\n"
 
         for _, row in df.iterrows():
-            ticker_symbol = clean_html(str(row['Ticker']))
+            ticker = clean_html(str(row['Ticker']))
             price = f"${row['Price']:.2f}"
-            change_val = row['Change'] * 100
-            change_str = f"{'+' if change_val > 0 else ''}{change_val:.2f}%"
-            volume = format_volume(row['Volume'])
             
-            # Nowe dane techniczne (Pobierane indywidualnie w finviz_screener.py)
-            gap_val = row.get('Gap_Val', 'N/A')
-            float_shares = row.get('Float_Val', 'N/A')
+            # Format performance data
+            chg_pm = float(row.get('PM_Change', 0))
+            gap_pm = float(row.get('PM_Gap', 0))
+            chg_str = f"{'+' if chg_pm > 0 else ''}{chg_pm:.2f}%"
+            gap_str = f"{gap_pm:+.2f}%"
             
-            # Pobieramy już wyliczony wcześniej Rel Vol
-            rel_vol_numeric = row.get('Rel_Vol_Calc_Numeric', 0)
-            rel_vol_calc = f"{rel_vol_numeric:.2f}" if rel_vol_numeric > 0 else "N/A"
-
-            # Formatowanie Gap (zamiana ułamka na procent, jeśli to ułamek)
-            try:
-                if isinstance(gap_val, (float, int)):
-                    gap_str = f"{gap_val*100:+.2f}%"
-                else:
-                    gap_str = str(gap_val)
-            except:
-                gap_str = str(gap_val)
+            # Format technical data
+            vol_pm = format_number(row.get('PM_Volume', 0))
+            rel_vol = f"{row.get('Rel_Vol', 0):.2f}"
+            float_shares = format_number(row.get('Float', 0))
             
-            # Newsy - link i data
-            news_date = clean_html(str(row.get('News_Date', '')))
+            # News info
             news_link = str(row.get('News_Link', ''))
+            news_date = clean_html(str(row.get('News_Date', '')))
             
-            if news_date and news_date != "nan":
-                # Finviz często zwraca relatywne linki, np. /news/123...
-                if news_link.startswith('/'):
-                    news_link = f"https://finviz.com{news_link}"
-                
-                news_info = f"📅 <a href='{news_link}'><i>Ostatni news: {news_date}</i></a>"
+            if news_link and news_link != "nan":
+                news_info = f"📅 <a href='{news_link}'><b>Latest News</b></a>\n   <i>({news_date})</i>"
             else:
-                news_info = "📅 Brak newsów."
-            
-            # Budowanie sekcji dla każdej spółki (HTML)
-            finviz_url = f"https://finviz.com/quote.ashx?t={ticker_symbol}"
-            message += f"🔹 <b><a href='{finviz_url}'>{ticker_symbol}</a></b>\n"
-            message += f"   💰 Cena: <code>{price}</code> | <b>{change_str}</b>\n"
-            message += f"   📊 PM Vol: <code>{volume}</code> | Rel Vol: <code>{rel_vol_calc}</code>\n"
-            message += f"   📈 PM Gap: <code>{gap_str}</code> | Float: <code>{float_shares}</code>\n"
+                news_info = "📅 No recent news found."
+
+            # Construct HTML section for the ticker
+            finviz_url = f"https://finviz.com/quote.ashx?t={ticker}"
+            message += f"🔹 <b><a href='{finviz_url}'>{ticker}</a></b>\n"
+            message += f"   💰 Price: <code>{price}</code> | PM: <b>{chg_str}</b>\n"
+            message += f"   ⚡ Gap: <code>{gap_str}</code> | Rel Vol: <code>{rel_vol}</code>\n"
+            message += f"   📊 PM Vol: <code>{vol_pm}</code> | Float: <code>{float_shares}</code>\n"
             message += f"   {news_info}\n\n"
 
-    # 3. Wysyłka przez bota
-    bot = Bot(token=TELEGRAM_BOT_TOKEN)
-    try:
+        # Initialize bot and send message
+        bot = Bot(token=TELEGRAM_BOT_TOKEN)
         await bot.send_message(
             chat_id=TELEGRAM_CHAT_ID, 
             text=message, 
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True
         )
-        print("Pomyślnie wysłano zaktualizowany raport na Telegram.")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Report sent successfully.")
+
     except Exception as e:
-        print(f"Błąd podczas wysyłania na Telegram: {e}")
-
-def job():
-    asyncio.run(send_to_telegram())
-
-def run_scheduler():
-    est = pytz.timezone('America/New_York')
-    print("Bot wystartował. Harmonogram: 09:15 EST (Pn-Pt).")
-    
-    while True:
-        now_est = datetime.now(est)
-        # weekday() zwraca 0 dla Poniedziałku, ..., 4 dla Piątku
-        if now_est.weekday() < 5:
-            # Sprawdzenie godziny
-            current_time_str = now_est.strftime("%H:%M")
-            if current_time_str == "09:15":
-                job()
-                time.sleep(65) # Unikamy podwójnego wysłania w tej samej minucie
-        
-        time.sleep(30)
+        print(f"[!] Send error: {e}")
 
 if __name__ == "__main__":
-    run_scheduler()
+    asyncio.run(send_to_telegram())
