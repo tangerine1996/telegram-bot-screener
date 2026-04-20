@@ -1,11 +1,11 @@
-# Środowisko i sekrety
+# Environment and secrets
 .env
 .env.test
 
-# Folder z kopiami i testami
+# Backups and tests
 backup/
 
-# Python - pliki tymczasowe i skompilowane
+# Python - temporary and compiled files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -29,20 +29,20 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Środowiska wirtualne
+# Virtual environments
 .venv
 venv/
 ENV/
 env/
 target/
 
-# Logi i wyniki
+# Logs and results
 *.log
 results/*
 !results/.gitkeep
-# Zostawiamy nagłówek lub sam folder, ale ignorujemy konkretne pliki wynikowe jeśli chcesz
+# Keep the folder structure but ignore result files if needed
 # results/
 
-# Systemowe
+# System files
 .DS_Store
 Thumbs.db
