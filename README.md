@@ -73,11 +73,15 @@ The interactive bot runs as a background service. To install it manually:
 
 - **Usage:** Send `/data` to the bot on Telegram to start browsing the archive.
 
-### 2. Morning Report (Cron - 09:15 AM ET)
-Triggers the scan and sends the Telegram report 15 minutes before the market opens.
+### 2. Morning Report (Cron - 09:25 AM ET)
+Triggers the scan and sends the Telegram report **5 minutes before the US market opens**. 
+
+To ensure the script always runs at the correct US time (ET) regardless of your server's local timezone or Daylight Saving Time (DST) shifts, it is recommended to use a conditional check in your crontab:
+
 ```bash
-CRON_TZ=America/New_York
-15 9 * * 1-5 /home/serveradmin/projects/trading-screener/run_all.sh >> /home/serveradmin/projects/trading-screener/execution.log 2>&1
+# Example: Running at 09:25 AM ET (New York time)
+# Adjust the local hour (14,15,16) to match your server's offset from ET
+25 14,15,16 * * 1-5 [ "$(TZ=America/New_York date +\%H:\%M)" = "09:25" ] && /home/serveradmin/projects/trading-screener/run_all.sh >> /home/serveradmin/projects/trading-screener/execution.log 2>&1
 ```
 
 ### 3. End-of-Day Archiving (Cron - 23:00 Local Time)
